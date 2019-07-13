@@ -1,0 +1,234 @@
+import gensim
+from nltk.corpus import stopwords
+from gensim.models import Word2Vec
+stopw = set(stopwords.words('english'))
+import os
+import sys
+import numpy as np
+import multiprocessing as mp
+
+
+def filter_word_vectors(subnames, aff_words,
+                        default_path='/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/', 
+                        model_ext=['-2014-11-12.model', '-2015-01-02.model', '-2015-03-04.model', '-2015-05-06.model']):
+    
+    remove_index = []
+    new_aff_words = []
+    new_subnames = []
+    for i, sub in enumerate(subnames):
+        count = 0
+        sub_dir = os.path.join(default_path, sub)
+        for file_names in os.listdir(sub_dir):
+            if '.model' in file_names:
+                count += 1
+        
+        if count == 4:
+            new_subnames.append(sub)
+            new_aff_words.append(aff_words[i])
+#             new_subnames.append(
+    return new_subnames, new_aff_words
+
+
+def lemmatize_text(preprocessed_text, nlp, queue=None, batch_size=100, thread_count=8):
+    token_list = []
+    piped_docs = nlp.pipe(preprocessed_text, batch_size=batch_size, n_threads=thread_count)
+    for doc in piped_docs:
+        token_list.append([token.lemma_ if token.lemma_ != '-PRON-' else token.lower_ for token in doc])
+    if queue:
+        queue.put(token_list)
+    else:
+        return token_list
+
+
+def get_word_models(subreddit, 
+                    default_path='/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/', 
+                    model_ext=['-2014-11-12.model', '-2015-01-02.model', '-2015-03-04.model', '-2015-05-06.model']):
+    """
+    Purpose:
+    
+        Returns the word2vec models searched for in a subreddit directory. By default, it returns in the intervals of 
+        2 months, word2vec models trained between Nov 2014 and June 2015. 
+        
+    Parameters:
+        subreddit: subreddit name -> string
+        default_path: path to the subreddit models directory -> string
+        model_ext: extension by which the models are loaded -> list -> str. 
+        
+    """
+    subreddit_dir = os.path.join(default_path, subreddit)
+    
+    models = []
+    for exts in model_ext:
+        models.append(Word2Vec.load(os.path.join(subreddit_dir, subreddit + exts)))
+    return models
+
+
+def ready_corpus_for_w2v(posts, nlp, freq=None, batch_size=100, thread_count=8,
+                         lemmatize=False, filter_stopw=True):
+    words = set(freq.keys())
+    
+    convert_corpus = [[w for w in p if w in words and w not in stopw] for p in posts]
+    
+    if lemmatize:
+        texts = [' '.join(p) for p in convert_corpus]
+        convert_corpus = lemmatize_text(texts, nlp, batch_size=batch_size, thread_count=thread_count)
+    
+    return convert_corpus
+
+
+def create_w2v_model(convert_corpus):
+#     dic = tup_to_dic(freq) word counts. 
+    model = gensim.models.Word2Vec(
+        convert_corpus,
+        size=300,
+        window=5,
+        min_count=5,
+        workers=10)
+    
+    model.train(convert_corpus, total_examples=len(convert_corpus), epochs=10)
+    return model
+
+
+def word_cross_comparison(similar_words):
+    """
+    Purpose:
+    takes in a list of list of words and tries to identify how many of the words are in the other lists
+    """
+    score_mat = [[] for i in range(len(similar_words))]
+    for i, w_list in enumerate(similar_words):
+        for j, s_list in enumerate(similar_words):
+            count = 0
+            for w in w_list:
+                if w in s_list:
+                    count += 1
+            coeff_score = count/10
+            score_mat[i].append(coeff_score)
+    return score_mat
+
+
+def get_similarity_score(pearson_mat):
+    """
+    """
+    total_mat = pearson_mat[0]
+    for mat in pearson_mat[1:]:
+        total_mat += mat
+    return total_mat/len(pearson_mat)
+
+
+def pearson_coefficient_score(mods, aff_words, k=10, smoothing=0.1):
+    """
+    """
+    pearson_mat = []
+    word_count_in_models = 0
+    for w in aff_words:
+        nextWord = False
+        for m in mods:
+            if w not in m.wv:
+                nextWord = True
+        if nextWord:
+            continue
+        else:
+            word_count_in_models += 1
+        word_sets = []
+        for m in mods:
+            w_set = [t[0] for t in m.wv.similar_by_word(w)]
+            word_sets.append(w_set)
+        comp_mat = []
+        # four w_sets at this point. 
+        for ws in word_sets:
+            interm_mat = []
+            for ws2 in word_sets:
+                count = 0
+                for w in ws:
+                    if w in ws2:
+                        count += 1
+                f_score = count/k + smoothing
+                if f_score == 1.1:
+                    f_score = 1
+                interm_mat.append(f_score)
+            comp_mat.append(interm_mat)
+        pearson_mat.append(np.array(comp_mat))
+    return pearson_mat, word_count_in_models 
+
+
+def get_forward_backward_scores(sim_matrix, net=True):
+    """
+    Purpose: 
+        Extracts the semantic shift score of a subreddit.
+        It does this in a few ways. Firstly from the similarity matrix, it extracts the top left score as forward score.
+        It then extracts the bottom right as backward score.
+        
+    """
+    net_forward_score = 0
+    net_backward_score = 0
+    forward_score = sim_matrix[0][1]
+    backward_score = sim_matrix[-1][-2]
+    if net:
+        
+        prev = 0
+        for i in sim_matrix[0][1:]:
+            if prev == 0:
+                prev = i
+            else:
+                net_forward_score += i - prev
+                prev = i
+        
+        prev = 0
+        for j in sim_matrix[-1][:-1]:
+            if prev == 0:
+                prev = j
+                
+            else:
+                net_backward_score += j - prev
+                prev = j
+    
+    return [forward_score, backward_score, net_forward_score, net_backward_score]
+
+
+def semantic_shift_analysis(subreddit, aff_words, net=True):
+    """
+    Purpose:
+        Conduct semantic shift analysis on a given set of words. The given set of words are high affinity terms
+        to a subreddit. 
+        
+    Parameters:
+        
+    """
+    models = get_word_models(subreddit)
+    pearson_mat, word_count_in_mods = pearson_coefficient_score(models, aff_words)
+    try:
+        sim_matrix = get_similarity_score(pearson_mat)
+        semantic_scores = get_forward_backward_scores(sim_matrix, net)
+    except IndexError as e:
+        semantic_scores = [0, 0, 0, 0]
+    semantic_scores.append(word_count_in_mods)
+    return semantic_scores
+
+
+def semantic_shift_analysis_mult(subreddits, aff_words, net=True):
+    """
+    """
+    semantic_scores_list = []
+    
+    num_of_processes = os.cpu_count() - 1
+    pool = mp.Pool(processes=num_of_processes)
+    for sub, aff_w in zip(subreddits, aff_words):
+        semantic_scores_list.append(pool.apply(semantic_shift_analysis, args=(sub, aff_w)))
+    return semantic_scores_list
+
+
+def generate_subreddit_similarity_heatmap(multiscores, dates, subnames, mult=True):
+    if mult:
+        df = None
+        for i in range(len(multiscores)):
+            mc = multiscores[i]
+            sub = subnames[i]
+            sub_index = [sub] * len(mc)
+            some_dataframe = pd.DataFrame(data=mc, index=[sub_index, dates], columns=dates)
+            if type(df) == type(None):
+                df = some_dataframe
+            else:
+                
+                df = df.append(some_dataframe)
+    return df.T
+
