@@ -8,6 +8,7 @@ import sys
 import os
 # import pandas as pd
 import pickle
+import config
 
 # def pickle_dump(sub, ext, path, data):
 #     fname = sub + ext
@@ -34,30 +35,31 @@ def get_usernames(file_name, unames):
 if __name__ == "__main__":
     # load caitrin's extracted jsons to extract desired users. 
     
-    lemma_file_path = '/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/'
-    default_save_dir = '/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/'
+#     default_save_dir = '/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/'
     dict_file_ext = '_lemma_dic.pkl'
     
-    subreddit = sys.argv[1].split('/')[-2]
-    
-    print(subreddit)
+    subreddit = sys.argv[1]
+#     subreddit = sys.argv[1].split('/')[-2]
     
     uname_dl = False
     uname_path = subreddit + '_usernames.pkl'
-    uname_abs_path = os.path.join(os.path.join(default_save_dir, subreddit), uname_path)
-    if not os.path.exists(uname_path): 
+    sub_save_dir = os.path.join(config.SUBDIR_ANALYSIS_LOAD_PATH, subreddit)
+    uname_abs_path = os.path.join(sub_save_dir, uname_path)
+    if not os.path.exists(uname_abs_path): 
         uname_dl = True
+        unames = set()
+    else:
+        print(subreddit)
+        unames = pickle_load(uname_abs_path)
     
     # extracts usernames for subreddit
     if uname_dl:
-        unames = set()
-    for file_name in os.listdir(sys.argv[1]):
-        abs_file_name = os.path.join(sys.argv[1], file_name)
-        if uname_dl:
+        for file_name in os.listdir(sys.argv[1]):
+            abs_file_name = os.path.join(sys.argv[1], file_name)
             get_usernames(abs_file_name, unames)
     
     # calculate the path where the lemma dic is stored. 
-    sub_dir_file_path = os.path.join(default_save_dir, subreddit)
+    sub_dir_file_path = os.path.join(config.SUBDIR_ANALYSIS_LOAD_PATH, subreddit)
     dict_file_path = os.path.join(sub_dir_file_path, (subreddit + dict_file_ext))
     
     # loads the lemma dic from subreddit's storage folder. 
@@ -75,15 +77,15 @@ if __name__ == "__main__":
     w2u, u2w = wordpair.filter_correct_word_and_user(w2u, u2w)
     
     
-    save_dir = os.path.join(default_save_dir, subreddit)
+#     save_dir = os.path.join(config.SUBDIR_ANALYSIS_LOAD_PATH, subreddit)
     
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+    if not os.path.exists(sub_save_dir):
+        os.makedirs(sub_save_dir)
     
-    pickle_dump(subreddit, '_filtered_lemma.pkl', save_dir, filtered_lemma_dic)
-    pickle_dump(subreddit, '_w2u.pkl', save_dir, w2u)
-    pickle_dump(subreddit, '_u2w.pkl', save_dir, u2w)
+    pickle_dump(subreddit, '_filtered_lemma.pkl', sub_save_dir, filtered_lemma_dic)
+    pickle_dump(subreddit, '_w2u.pkl', sub_save_dir, w2u)
+    pickle_dump(subreddit, '_u2w.pkl', sub_save_dir, u2w)
     
-    if uname_dl:
-        pickle_dump(subreddit, '_usernames.pkl', save_dir, unames)
+#     if uname_dl:
+#         pickle_dump(subreddit, '_usernames.pkl', sub_save_dir, unames)
         

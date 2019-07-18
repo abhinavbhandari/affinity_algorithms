@@ -9,6 +9,7 @@ import os
 import re
 import pandas as pd
 import pickle
+import config
 
 nlp = spacy.load('en', disable=['parser', 'ner'])
 
@@ -90,22 +91,11 @@ def task_handling(base_path, partial_path, save_path="/home/ndg/projects/shared_
     with open(full_save_path, 'wb') as f:
         pickle.dump(lemmatized_text, f)
 
-
-if __name__ == "__main__":
-    # load caitrin's extracted jsons to extract desired users. 
+        
+def lemmatize_text_files(dir_path, subreddit):
+    """
+    """
     
-    load_path = '/home/ndg/projects/shared_datasets/semantic-shift-by-subreddit/subreddits_nov2014_june2015/'
-    default_save_dir='/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/'
-    
-    subreddit = sys.argv[1]
-    print(subreddit)
-    dir_path = os.path.join(load_path, subreddit)
-    
-    
-    
-#     remaining_subs = pickle_load('remaining_subs.pkl')
-    
-    # include username functionality
     unames = set()
     
     for files in os.listdir(dir_path):
@@ -114,9 +104,51 @@ if __name__ == "__main__":
         partial_path = file_path.split("/")[-1]
         task_handling(base_path, partial_path, unames=unames)
         
-    save_dir = os.path.join(default_save_dir, subreddit)
+    save_dir = os.path.join(config.SUBDIR_ANALYSIS_LOAD_PATH, subreddit)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     
 #     save_file_path = os.path.join(save_dir, subreddit + '_usernames.pkl')
     pickle_dump(subreddit, '_usernames.pkl', save_dir, unames)
+    
+
+def lemmatize_text_files_from_full_path(subreddit):
+    dir_path = os.path.join(config.SUBREDDIT_STORAGE_PATH, subreddit)
+    lemmatize_text_files(dir_path, subreddit)
+    
+
+
+if __name__ == "__main__":
+    """
+    
+    """
+    subreddit = sys.argv[1]
+    lemmatize_text_files_from_full_path(subreddit)
+    
+    # load caitrin's extracted jsons to extract desired users. 
+    
+#     load_path = '/home/ndg/projects/shared_datasets/semantic-shift-by-subreddit/subreddits_nov2014_june2015/'
+#     default_save_dir='/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/'
+    
+#     print(subreddit)
+#     dir_path = os.path.join(config.SUBREDDIT_STORAGE_PATH, subreddit)
+    
+    
+    
+# #     remaining_subs = pickle_load('remaining_subs.pkl')
+    
+#     # include username functionality
+#     unames = set()
+    
+#     for files in os.listdir(dir_path):
+#         file_path = os.path.join(dir_path, files)
+#         base_path = "/".join(file_path.split("/")[:-1])
+#         partial_path = file_path.split("/")[-1]
+#         task_handling(base_path, partial_path, unames=unames)
+        
+#     save_dir = os.path.join(config.SUBDIR_ANALYSIS_LOAD_PATH, subreddit)
+#     if not os.path.exists(save_dir):
+#         os.makedirs(save_dir)
+    
+# #     save_file_path = os.path.join(save_dir, subreddit + '_usernames.pkl')
+#     pickle_dump(subreddit, '_usernames.pkl', save_dir, unames)
