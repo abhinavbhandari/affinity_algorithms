@@ -18,8 +18,20 @@ def get_subreddit_metrics(sub, metrics_obj):
 
 
 def generate_subreddit_metrics_df(subnames, n=100, subreddit_metrics=None):
-    """
-    Extracts the informatino regarding n most afffnity words, their semantic shift, and their username metrics.
+    """Extracts the information regarding n most afffnity words, their semantic shift, and their username metrics.
+    
+    Calculates the n most affinity words, semantic shift and how many users have adopt 
+    affinity terms for each subreddit that is passed. 
+    
+    Args:
+        subnames: list of subreddits
+        n: number of top affinity terms that should be extracted and semantic shift should be measured.
+        subreddit_metrics: An object that contains subreddit metric data for each subreddit such as 
+                loyalty, dedication, no. of users and comments. If None, then it loads a default one.
+                
+    Returns:
+        A final dataframe which includes affinity term, semantic shift and username data for each subreddit.
+        Also a dictionary which is the affinity terms for each subreddit, and
     """
     
     sub_index_dic = {s_name: i for i, s_name in enumerate(subnames)}

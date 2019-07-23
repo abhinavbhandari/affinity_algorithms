@@ -6,15 +6,26 @@ import sys
 import os
 import config
 
+"""A global object that holds the word-to-subreddits dictionary with each words frequency. """
+word_to_subs_dic_global = None
+
+
 def get_n_most_affinity_terms(aff_dic, n=100):
+    """Return top n affinity terms."""
     terms = sorted(aff_dic, key=lambda x: aff_dic[x], reverse=True)
-#     print(type(terms))
     return terms[:n]
 
 
 def get_n_most_affinity_terms_mult(aff_dics, n=100):
-    """
-    Helper function that gets 
+    """Helper function that gets top n affinity terms (for multiple subreddits).
+    
+    Args:
+        aff_dics: list of dictionaries with words that map to affinity values. 
+            Each dictionary represents a subreddit
+        n: Number of affinity terms to extract from highest to lowest.
+        
+    Returns:
+        n affinity terms in descending order. 
     """
     terms = []
     for aff_dic in aff_dics:
@@ -22,105 +33,132 @@ def get_n_most_affinity_terms_mult(aff_dics, n=100):
     return terms
 
 
-def calculate_total_freq(dics, mult=False):
-    """
-    Purpose:
-        dics: A list of dics of lemma. 
+def get_word_to_subs_dic(word):
+    """ Return list of subreddits and their frequencies for a word"""
+    return word_to_subs_dic_global[word]
+
+
+def get_wordfreq_dic(subname, wordfreq_ext='_filtered_lemma.pkl'):
+    """Return word-frequency-dictionary for a subreddit."""
+    lemma_dic_path = subname + wordfreq_ext
+    sub_lemma_dic_path = os.path.join(
+        os.path.join(config.SUBDIR_ANALYSIS_LOAD_PATH, subname), 
+        lemma_dic_path)
+    return pickle_load(sub_lemma_dic_path)
+
+
+def calculate_total_freq(subnames, mult=False):
+    """ Calculate the total number of occurrences of all terms in a subreddit.
+    
+    Calculates the total word occurrence in subreddits passed to the function.
+    Has functionality to calculate for multiple subreddits and single subreddit.
+    
+    Args:
+        subnames: a list of subreddits
+        mult: boolean for multiple file processing or not.
+    
+    Returns:
+        An int that is a sum, or a list of sum of word occurrences. 
     
     """
     if mult:
         freq = []
-        for dic in dics:
+        for sub in subnames:
+            dic = get_wordfreq_dic(sub)
             freq.append(sum(v for _, v in dic.items()))
         return freq
     else:
         return sum(v for (_, v) in dics.items())
-
-
-def affinity_analysis(wordfreq_dic_list, total_freq, ignore_pos):
-    """
-    Purpose:
-        
     
+
+def affinity_analysis(subnames, total_freq, subs_to_num, target_sub_index):
+    """Computes the affinity values of terms in a subreddit.
+    
+    The affinity value is computed in comparison to the total frequency of terms from other subreddits.
+    
+    Fomrula for the affinity
+    
+    Args:
+        wordfreq_dic_list: a list of wordfreq dictionaries, for each subreddit.
+        total_freq: a list of total
+        subs_to_num: a dictionary that maps a subreddit to number index
+        target_sub_index: this is the index of the target subreddit for which 
+                affinity terms are being calculated. 
+    
+    Returns:
+        A dictionary that maps affinity value to each word in the target subreddit.
     """
-    main_vocab_dic = wordfreq_dic_list[ignore_pos]
+    target_sub_word_freq_dictionary = get_wordfreq_dic(subnames[target_sub_index])
     affinity = []
-    holder = {}
-    for word in main_vocab_dic:
-        a = main_vocab_dic[word]/total_freq[ignore_pos]
-        for j in range(len(wordfreq_dic_list)):
-            if j is not ignore_pos and word in wordfreq_dic_list[j]:
-                a += wordfreq_dic_list[j][word]/total_freq[j]
-        fp = int(total_freq[ignore_pos]*0.00001)
-        coeff = wordfreq_dic_list[ignore_pos][word] - fp
+    affinity_value_dictionary = {}
+    target_dictionary_index = subs_to_num[subnames[target_sub_index]]
+    for word in target_sub_word_freq_dictionary:
+        a = target_sub_word_freq_dictionary[word]/total_freq[target_dictionary_index]
+        word_to_subs_list = get_word_to_subs_dic(word)
+        for j, sub in enumerate(subnames):
+            sub_index = subs_to_num[sub]
+            if j is not target_sub_index and sub_index in word_to_subs_list:
+                a += word_to_subs_list[sub_index]/total_freq[subs_to_num[sub]]
+        fp = int(total_freq[target_dictionary_index]*0.00001)
+        coeff = target_sub_word_freq_dictionary[word] - fp
         if coeff <= 1:
             coeff = 1
-        num = (1 - 1/coeff)*((main_vocab_dic[word]/total_freq[ignore_pos])/a)
-        holder[word] = num
-    return holder
+        num = (1 - 1/coeff)*((target_sub_word_freq_dictionary[word]/total_freq[target_dictionary_index])/a)
+        affinity_value_dictionary[word] = num
+    return affinity_value_dictionary
 
 
-def run_slang_analyser(subnames, save_name='temporary', save_file=True):
-    """
-    Purpose:  
-        This function is the main function that encapsulates the logic for all the steps required to run
-        affinity analysis. The affinity analysis should extract key terms. 
+def run_slang_analyser(subnames, word_to_subs_global_path="word_frequencies_to_subreddit.pkl", total_freq_path="total_freq.pkl", subs_to_num_path="subs_to_num.pkl", save_name='temporary', save_file=False):
+    """Runs slang analysis, which includes calculating affinity values for each subreddit passed.
     
-    Parameters:
+    This function is the main function that encapsulates the logic for all the steps required to run
+    affinity analysis. The affinity analysis should extract key terms. 
+    
+    Args:
         subnames: a list of subreddit names, of which directories should be accessed and their lemma dictionaries
-                should be used to extract high affinity terms, relative to other subreddits. -> list -> str
-        target_sub:
-                a subreddit that should be loaded, separetly,and its file should be loaded from disc. 
+                should be used to extract high affinity terms, relative to other subreddits.
+        target_sub: a subreddit that should be loaded, separetly,and its file should be loaded from disc.
+        
+    Returns:
+        a list which contains a dictionary of affinity values for each word. 
     """
-    sub_dirs_path ='/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/'
     
-    # load every single word-frequency dictionary for each subname.
-    
-    wordfreq_ext = '_filtered_lemma.pkl'
-    
-    # list of wordfreq dictionary list. 
-    wordfreq_dic_list = []
-    
+    # Load global word_to_subs
+    global word_to_subs_dic_global 
+    word_to_subs_dic_global = pickle_load(os.path.join(config.SUBREDDIT_METRIC, word_to_subs_global_path))
+    subs_to_num = pickle_load(os.path.join(config.SUBREDDIT_METRIC, subs_to_num_path))
     num_of_processes = os.cpu_count() - 1
     pool = mp.Pool(processes=num_of_processes)
     
-    # Loads the lemma_dictionaries for each subreddit in the slang_analyser function. 
-    for sub in subnames:
-        lemma_dic_path = sub + wordfreq_ext
-        sub_lemma_dic_path = os.path.join(
-            os.path.join(sub_dirs_path, sub), 
-            lemma_dic_path)
-        wordfreq_dic_list.append(pickle_load(sub_lemma_dic_path))
-    
-    print(len(wordfreq_dic_list))
-    total_freq = calculate_total_freq(wordfreq_dic_list, mult=True)
+    if total_freq_path:
+        total_freq = pickle_load(os.path.join(config.SUBREDDIT_METRIC, total_freq_path))
+        print('h')
+    else:
+        total_freq = calculate_total_freq(subnames, mult=True)
     
     print(len(total_freq))
     
     affinity_dic_list = []
-    
     for i_position in range(len(subnames)):
-        affinity_dic_list.append(pool.apply(affinity_analysis, args=(wordfreq_dic_list, total_freq, i_position)))
+        affinity_dic_list.append(pool.apply(affinity_analysis, args=(subnames, total_freq, subs_to_num, i_position)))
     
     if save_file:
-        affinity_path = os.path.join(sub_dirs_path, 'affinity_values')
-        if not os.path.exists(affinity_path):
-            os.makedirs(affinity_path)
-        pickle_dump(save_name, '_affinity_terms.pkl', affinity_path, affinity_dic_list)
+        affinity_values_save_path = os.path.join(config.SUBDIR_ANALYSIS_LOAD_PATH, 'affinity_values')
+        if not os.path.exists(affinity_values_save_path):
+            os.makedirs(affinity_values_save_path)
+        pickle_dump(save_name, '_affinity_terms.pkl', affinity_values_save_path, affinity_dic_list)
     else:
         return affinity_dic_list
     
 
 if __name__ == '__main__':
-    # Decide how the subnames are going to be parsed. 
+    """
     
-    # maybe load it through a file or a an import function.
+    """
     subname_file = sys.argv[1]
-#     subnames = pickle_load(subname_file)
     
     with open(subname_file) as f:
         subnames = f.read()
-#     subnames = subnames.split('\n')
     print(type(subnames))
     subnames = subnames.split('\n')[:-1]
     print(len(subnames))

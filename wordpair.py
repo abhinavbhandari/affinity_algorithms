@@ -7,8 +7,6 @@ from subreddinfo import pickle_load
 import os
 
 def calculate_user_name_metrics(subname, aff_word, w2u_path, u2w_path, total_users, intercepting_words=True):
-#     std = []
-#     mean = []
     """
     Remove replacing w2u, and u2w at some point. 
     """
@@ -36,9 +34,24 @@ def calculate_user_name_metrics(subname, aff_word, w2u_path, u2w_path, total_use
 
 
 def calculate_user_name_metrics_mult(subnames, aff_word, subreddit_metrics):
+    """Multiprocesses username metrics calculation.
+    
+    Calculates the number of affinty terms are adopted by users of a subreddit. Conducts this calculation
+    for each subreddit that is passed, along with the list of affinity terms. The list of affinity terms
+    is calcluated outside this function.
+    The function also loads the word-2-user and user-2-word dictionaries internally.
+    
+    Args:
+        subnames: list of subnames in str
+        aff_word: list of affinity words (n most affinity words) for each subreddit
+        subreddit_metrics: subreddit metrics obj, which contains loyalty, dedication, 
+                no. of users, no. of comments,
+    
+    Returns:
+        For each subreddit, it returns username to affinity term metrics such as
+        mean, std, slang-to-user-wordcount, percentage of total users adopting slang. 
     """
-    Todo: 
-    """
+    
     metrics_holder = []
     pool = mp.Pool(processes=7)
     for sub, aff_w in zip(subnames, aff_word):
@@ -58,7 +71,7 @@ def calculate_user_name_metrics_mult(subnames, aff_word, subreddit_metrics):
 def sorting_words_with_frequency(): 
     """
     Todo:
-    Implement this with sorted words, and frequency optimization. 
+        Implement this with sorted words, and frequency optimization. 
     """
     return None
 
@@ -95,6 +108,9 @@ def remove_intercepting_words(u2w, w2u):
 
 
 def tup_to_dic(tups, mult=False):
+    """
+    
+    """
     if mult:
         dics = [{t[0]:t[1] for t in tup} for tup in tups]
         return dics
@@ -103,6 +119,9 @@ def tup_to_dic(tups, mult=False):
 
     
 def dic_to_tup(dics, mult=False):
+    """
+    
+    """
     tups = []
     if mult:
         for dic in dics:
@@ -150,6 +169,10 @@ def filter_words(tups, word_len=[3, 4, 5], word_freq=[[200], [15], [10]], max_le
 
 
 def conditional_insertion_in_dic(dic, term, insert_val):
+    """
+    
+    """
+    
     if term in dic:
         dic[term].append(insert_val)
     else:
@@ -157,6 +180,18 @@ def conditional_insertion_in_dic(dic, term, insert_val):
 
 
 def create_user_to_word(usernames, word_dic):
+    """Maps words in a subreddit to the users that use it in their usernames.
+    
+    Maps the words that are used in a dictionary by figuring out which 
+    
+    Args:
+        usernames: a list of usernames
+        word_dic: a dictionary of word to count. Key is word, val is count.
+        
+    Returns:
+        Two dictionaries, that are username to words it contains, and words to usernames. 
+    
+    """
     word_to_user = {}
     user_to_word = {}
     for word in word_dic:
@@ -170,6 +205,10 @@ def create_user_to_word(usernames, word_dic):
 
 
 def remove_words_not_in_dic(sub_dic, word_to_user, user_to_word, mult=True):
+    """
+    
+    
+    """
     word_set = set(word_to_user.keys())
     for word in word_set:
         if word not in sub_dic:
