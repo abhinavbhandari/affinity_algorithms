@@ -7,16 +7,19 @@ import os
 import config
 
 """A global object that holds the word-to-subreddits dictionary with each words frequency. """
-word_to_subs_dic_global = None
+global word_to_subs_dic_global 
+word_to_subs_dic_global = pickle_load(os.path.join(config.SUBREDDIT_METRIC, "word_frequencies_to_subreddit.pkl"))
 
 
-def get_n_most_affinity_terms(aff_dic, n=100):
+def get_n_most_affinity_terms(aff_dic, n=100, reverse=False):
     """Return top n affinity terms."""
-    terms = sorted(aff_dic, key=lambda x: aff_dic[x], reverse=True)
+    terms = sorted(aff_dic, key=lambda x: aff_dic[x], reverse=reverse)
+    if reverse==False:
+        terms = [term for term in terms if aff_dic[term] != 0]
     return terms[:n]
 
 
-def get_n_most_affinity_terms_mult(aff_dics, n=100):
+def get_n_most_affinity_terms_mult(aff_dics, n=100, reverse=False):
     """Helper function that gets top n affinity terms (for multiple subreddits).
     
     Args:
@@ -29,7 +32,7 @@ def get_n_most_affinity_terms_mult(aff_dics, n=100):
     """
     terms = []
     for aff_dic in aff_dics:
-        terms.append(get_n_most_affinity_terms(aff_dic, n))
+        terms.append(get_n_most_affinity_terms(aff_dic, n, reverse))
     return terms
 
 
@@ -71,16 +74,17 @@ def calculate_total_freq(subnames, mult=False):
         return sum(v for (_, v) in dics.items())
     
 
-def affinity_analysis(subnames, total_freq, subs_to_num, target_sub_index):
+def affinity_analysis(subnames, target_sub_index, total_freq_path="total_freq.pkl", subs_to_num_path="subs_to_num.pkl"):
     """Computes the affinity values of terms in a subreddit.
     
     The affinity value is computed in comparison to the total frequency of terms from other subreddits.
     
-    Fomrula for the affinity
+    Fomrula for the affinity function is the following.
+    (1 - 1/(f_s(w) - t_f(s) * 0.00001)) * ( p_s(w)/SUM for s' in S(p_s'(w)) )
     
     Args:
         wordfreq_dic_list: a list of wordfreq dictionaries, for each subreddit.
-        total_freq: a list of total
+        total_freq: a dictionary that contains the total occurrences for each subreddit.
         subs_to_num: a dictionary that maps a subreddit to number index
         target_sub_index: this is the index of the target subreddit for which 
                 affinity terms are being calculated. 
@@ -88,6 +92,11 @@ def affinity_analysis(subnames, total_freq, subs_to_num, target_sub_index):
     Returns:
         A dictionary that maps affinity value to each word in the target subreddit.
     """
+    if total_freq_path:
+        total_freq = pickle_load(os.path.join(config.SUBREDDIT_METRIC, total_freq_path))
+    else:
+        total_freq = calculate_total_freq(subnames, mult=True)
+    subs_to_num = pickle_load(os.path.join(config.SUBREDDIT_METRIC, subs_to_num_path))
     target_sub_word_freq_dictionary = get_wordfreq_dic(subnames[target_sub_index])
     affinity = []
     affinity_value_dictionary = {}
@@ -97,8 +106,8 @@ def affinity_analysis(subnames, total_freq, subs_to_num, target_sub_index):
         word_to_subs_list = get_word_to_subs_dic(word)
         for j, sub in enumerate(subnames):
             sub_index = subs_to_num[sub]
-            if j is not target_sub_index and sub_index in word_to_subs_list:
-                a += word_to_subs_list[sub_index]/total_freq[subs_to_num[sub]]
+            if j != target_sub_index and sub_index in word_to_subs_list:
+                a += word_to_subs_list[sub_index]/total_freq[sub_index]
         fp = int(total_freq[target_dictionary_index]*0.00001)
         coeff = target_sub_word_freq_dictionary[word] - fp
         if coeff <= 1:
@@ -123,24 +132,12 @@ def run_slang_analyser(subnames, word_to_subs_global_path="word_frequencies_to_s
         a list which contains a dictionary of affinity values for each word. 
     """
     
-    # Load global word_to_subs
-    global word_to_subs_dic_global 
-    word_to_subs_dic_global = pickle_load(os.path.join(config.SUBREDDIT_METRIC, word_to_subs_global_path))
-    subs_to_num = pickle_load(os.path.join(config.SUBREDDIT_METRIC, subs_to_num_path))
     num_of_processes = os.cpu_count() - 1
     pool = mp.Pool(processes=num_of_processes)
     
-    if total_freq_path:
-        total_freq = pickle_load(os.path.join(config.SUBREDDIT_METRIC, total_freq_path))
-        print('h')
-    else:
-        total_freq = calculate_total_freq(subnames, mult=True)
-    
-    print(len(total_freq))
-    
     affinity_dic_list = []
     for i_position in range(len(subnames)):
-        affinity_dic_list.append(pool.apply(affinity_analysis, args=(subnames, total_freq, subs_to_num, i_position)))
+        affinity_dic_list.append(pool.apply(affinity_analysis, args=(subnames, i_position, total_freq_path, subs_to_num_path)))
     
     if save_file:
         affinity_values_save_path = os.path.join(config.SUBDIR_ANALYSIS_LOAD_PATH, 'affinity_values')
@@ -150,10 +147,27 @@ def run_slang_analyser(subnames, word_to_subs_global_path="word_frequencies_to_s
     else:
         return affinity_dic_list
     
+    
+def load_affinity_terms(sub):
+    """ """ 
+    aff_terms_ext = '_affinity_terms.pkl'
+    sub_space = os.path.join(config.SUBDIR_ANALYSIS_LOAD_PATH, sub)
+    aff_terms_file_path = sub + aff_terms_ext
+    full_path = os.path.join(sub_space, aff_terms_file_path)
+    return pickle_load(full_path)
+    
+    
+def load_affinity_terms_mult(subnames):
+    """ """
+    aff_terms_list = []
+    for sub in subnames:
+        aff_terms_list.append(load_affinity_terms(sub))
+    return aff_terms_list
+        
 
 if __name__ == '__main__':
     """
-    
+    Hello hello
     """
     subname_file = sys.argv[1]
     

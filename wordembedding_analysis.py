@@ -22,16 +22,12 @@ def make_model_and_corpus(word_freq, subreddit, years=['2014'], months=['11', '1
     
     file_regexes = []
     
-#     save_dir = ''
     for y in range(len(years)):
 #         save_dir = save_dir + years[y]
         for m in range(len(months)):
             file_regex = '*' + years[y] + '-' + months[m] + '*'
             file_regexes.extend(glob.glob(os.path.join(sub_dir, file_regex)))
-#             save_dir = save_dir + '_' + months[m]
-    
-    
-#     save_dir = os.path.join(sub_dir, save_dir)
+
     if not os.path.exists(sub_dir):
         os.makedirs(sub_dir)
     

@@ -25,7 +25,6 @@ def filter_word_vectors(subnames, aff_words,
         if count == 4:
             new_subnames.append(sub)
             new_aff_words.append(aff_words[i])
-#             new_subnames.append(
     return new_subnames, new_aff_words
 
 
@@ -77,7 +76,7 @@ def ready_corpus_for_w2v(posts, nlp, freq=None, batch_size=100, thread_count=8,
 
 
 def create_w2v_model(convert_corpus):
-#     dic = tup_to_dic(freq) word counts. 
+    
     model = gensim.models.Word2Vec(
         convert_corpus,
         size=300,
@@ -115,17 +114,58 @@ def get_similarity_score(pearson_mat):
     return total_mat/len(pearson_mat)
 
 
+def compute_semantic_shift_matrix(word_embeddings, k=10, smoothing=0.1):
+    """Computes semantic shift matrix for a subreddit's word embeddings.
+    
+    Computes semantic shift matrix by comparing the k similar neighbors of
+    word embeddings that are ordered.
+    
+    Args:
+        word_embeddings: list of word embeddings ordered by date interval
+        k: number of similar neighbors to compare
+        smoothing: smoothing coefficient, that gives an assumption of 
+            at least one neighbor is similar (although the data may not contain it).
+    
+    """
+    word_embeddings_len = len(word_embeddings)
+    comp_mat = np.empty((word_embeddings_len, word_embeddings_len))
+    for i, ws in enumerate(word_embeddings):
+        for j, ws2 in enumerate(word_embeddings):
+            count = 0
+            for w in ws:
+                if w in ws2:
+                    count += 1
+            f_score = count/k + smoothing
+            if f_score == 1.1:
+                f_score = 1
+            comp_mat[i][j] = f_score
+    return comp_mat
+
+
 def pearson_coefficient_score(mods, aff_words, k=10, smoothing=0.1):
+    """Extracts the semantic shift matrices for affinity terms by comparing word embeddings.
+    
+    Args:
+        mods: word embedding models for each interval, ordered
+        aff_words: 
+    
+    Returns:
+        Four values.
+        A list of semantic shift matrices
+        The number of words that are in all four models
+        
     """
-    """
+    word_to_score = {}
     pearson_mat = []
     word_count_in_models = 0
+    w2a_indexes = []
     for w in aff_words:
         nextWord = False
         for m in mods:
             if w not in m.wv:
                 nextWord = True
         if nextWord:
+            word_to_score[w] = 0
             continue
         else:
             word_count_in_models += 1
@@ -133,22 +173,11 @@ def pearson_coefficient_score(mods, aff_words, k=10, smoothing=0.1):
         for m in mods:
             w_set = [t[0] for t in m.wv.similar_by_word(w)]
             word_sets.append(w_set)
-        comp_mat = []
-        # four w_sets at this point. 
-        for ws in word_sets:
-            interm_mat = []
-            for ws2 in word_sets:
-                count = 0
-                for w in ws:
-                    if w in ws2:
-                        count += 1
-                f_score = count/k + smoothing
-                if f_score == 1.1:
-                    f_score = 1
-                interm_mat.append(f_score)
-            comp_mat.append(interm_mat)
-        pearson_mat.append(np.array(comp_mat))
-    return pearson_mat, word_count_in_models 
+        comp_mat = compute_semantic_shift_matrix(word_sets)
+        word_to_score[w] = word_count_in_models
+        pearson_mat.append(comp_mat)
+        w2a_indexes.append(w)
+    return pearson_mat, word_count_in_models, word_to_score, w2a_indexes
 
 
 def get_forward_backward_scores(sim_matrix, net=True):
@@ -185,6 +214,32 @@ def get_forward_backward_scores(sim_matrix, net=True):
     return [forward_score, backward_score, net_forward_score, net_backward_score]
 
 
+def get_n_affinity_words_semantic_shift(subreddit, aff_words, net=True):
+    """Top n affinity terms have their semantic shift evaluated.
+    
+    Args:
+        subreddit: name of subreddit (str)
+        aff_words: list of affinity terms. 
+    Purpose:
+        Conduct semantic shift analysis on a given set of words. The given set of words are high affinity terms
+        to a subreddit. 
+        
+    Parameters:
+        
+    """
+    models = get_word_models(subreddit)
+    pearson_mat, word_count_in_mods, word_to_aff_score, w2a_indexes = pearson_coefficient_score(models, aff_words)
+    try:
+        for i, mat in enumerate(pearson_mat):
+            word_to_aff_score[w2a_indexes[i]] = get_forward_backward_scores(mat)
+        sim_matrix = get_similarity_score(pearson_mat)
+        semantic_scores = get_forward_backward_scores(sim_matrix, net)
+    except IndexError as e:
+        semantic_scores = [0, 0, 0, 0]
+    semantic_scores.append(word_count_in_mods)
+    return semantic_scores, word_to_aff_score
+
+
 def semantic_shift_analysis(subreddit, aff_words, net=True):
     """
     Purpose:
@@ -195,7 +250,7 @@ def semantic_shift_analysis(subreddit, aff_words, net=True):
         
     """
     models = get_word_models(subreddit)
-    pearson_mat, word_count_in_mods = pearson_coefficient_score(models, aff_words)
+    pearson_mat, word_count_in_mods, _, _ = pearson_coefficient_score(models, aff_words)
     try:
         sim_matrix = get_similarity_score(pearson_mat)
         semantic_scores = get_forward_backward_scores(sim_matrix, net)
@@ -218,6 +273,20 @@ def semantic_shift_analysis_mult(subreddits, aff_words, net=True):
 
 
 def generate_subreddit_similarity_heatmap(multiscores, dates, subnames, mult=True):
+    """Creates a heatmap that maps out the semantic shift in scores over intervals.
+    
+    Takes in semantic shift scores across different subreddits, then creates a heatmap
+    which demonstrates the semantic shift for each subreddit across the specified time intervals.
+    
+    Args:
+        multiscores: a list of semantic shift matrices
+        dates: dates for time intervals (should be the same number as the dimension 
+            of multiescore matrix)
+        subnames: a list of subreddits.
+        
+    Returns:
+        A dataframe
+    """
     if mult:
         df = None
         for i in range(len(multiscores)):
