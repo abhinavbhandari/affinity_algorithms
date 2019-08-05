@@ -2,10 +2,12 @@
 import json
 import sys
 import glob
+import os
 
 def extract_username_lists(files, outfile):
     """
     Given a list of files containing Reddit comments for an interval,
+
     extracts all usernames and writes them to a file.
 
     :param file_directory:
@@ -35,11 +37,12 @@ def extract_username_lists(files, outfile):
 
 if __name__ == "__main__":
 
-    subreddit_data_dir = sys.arv[1]
+    subreddit_data_dir = sys.argv[1]
 
     subreddit = subreddit_data_dir.split("/")[-1]
     output_directory = "/home/ndg/projects/shared_datasets/semantic-shift-by-subreddit/subreddits_oct2014_june2015_author/" + subreddit + "/"
 
+    os.mkdir(output_directory)
     intervals = ["RC_2014-10",
                  "RC_2014-11",
                  "RC_2014-12",
@@ -53,4 +56,5 @@ if __name__ == "__main__":
     for interval in intervals:
         filestring = subreddit_data_dir + "/" + interval + "*"
         files = glob.glob(filestring)
-        output_dir = output_directory + interval + "_authors.txt"
+        output_file = output_directory + interval + "_authors.txt"
+        extract_username_lists(files, output_file)
