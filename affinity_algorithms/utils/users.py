@@ -60,7 +60,6 @@ class UserInfo(object):
         self.posts.append(post)
         self.time.append(d_time)
         
-        
     def graph_info():
         """Calculates the count of participation for each subreddit.
         """
@@ -259,3 +258,66 @@ def user_info_factory(dic, user_dic=None, main_sub=None, dedicated_set=None):
                                           posts=posts,
                                           time=d_time, main_sub=main_sub)
     return user_dic
+
+
+def combine_users(list_of_user_dics):
+    """Combines similar users from two different dictionaries.
+    
+    Multiple dictionaries are created when analysing different temporal 
+    datasets. There is likelihood that the same user has commented on Reddit
+    in multiple time periods, as such we combine their data from multiple
+    dictionaries.
+    
+    Args:
+        list_of_user_dics (list): List of user dictionaries.
+        
+    Returns:
+        new_user_dic (dic): A dictionary that is a combination of all
+            list of user dictionaries.
+    """
+    new_user_dic = {}
+    for user_dic in list_of_user_dics:
+        for user in user_dic:
+            if user in new_user_dic:
+                new_user_dic[user] = user_dic[user]
+            else:
+                new_user_dic[user].subs.extend(user_dic[user].subs)
+    return new_user_dic
+
+
+def combine_term_counts(extracted):
+    """Combines the data from 'subreddit_counts' and returns it in a new dictionary. 
+    """
+    new_dic = {}
+    for dic in extracted:
+        for term in dic:
+            if term in new_dic:
+                new_dic[term.lower()] += dic[term]
+            else:
+                new_dic[term.lower()] = dic[term]
+    return new_dic
+
+
+def list_of_dics_iterator(extracted, user_info=None, func=None, 
+                          dedicated_set=None, main_sub=None):
+    """Combines extracted dictionaries.
+    
+    Args:
+        extracted (list): List of dictionaries
+        user_info (dic): Info of users. 
+        func (func): Function that is supposed to run on provided parameters
+        dedicated_set (set): Set of dedicated users
+        main_sub (str): Target subreddit
+        
+    Returns:
+        user_info
+    """
+    user_counts = {}
+    if type(user_info) == type(None):
+        user_info={}
+    for dic in extracted:
+        if dedicated_set:
+            func(dic, user_info, main_sub, dedicated_set)
+        else:
+            func(dic, user_info, main_sub, dedicated_set)
+    return user_info

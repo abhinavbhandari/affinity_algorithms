@@ -6,10 +6,10 @@ import os
 import sys
 import numpy as np
 import multiprocessing as mp
-
+import pandas as pd
 
 def filter_word_vectors(subnames, aff_words,
-                        default_path='/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/', 
+                        default_path='/home/ndg/projects/semantic_shift_lemmatized/subreddits_nov2014_june2015/', 
                         model_ext=['-2014-11-12.model', '-2015-01-02.model', '-2015-03-04.model', '-2015-05-06.model']):
     
     remove_index = []
@@ -40,7 +40,7 @@ def lemmatize_text(preprocessed_text, nlp, queue=None, batch_size=100, thread_co
 
 
 def get_word_models(subreddit, 
-                    default_path='/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/', 
+                    default_path='/home/ndg/projects/semantic_shift_lemmatized/subreddits_nov2014_june2015/', 
                     model_ext=['-2014-11-12.model', '-2015-01-02.model', '-2015-03-04.model', '-2015-05-06.model']):
     """
     Purpose:
@@ -114,7 +114,11 @@ def get_similarity_score(pearson_mat):
     return total_mat/len(pearson_mat)
 
 
-def compute_semantic_shift_matrix(word_embeddings, k=10, smoothing=0.1):
+def jaccard_index(pearson_mat):
+    return
+
+
+def compute_semantic_shift_matrix(word_embeddings, k=10, smoothing=0.1, jaccard=True):
     """Computes semantic shift matrix for a subreddit's word embeddings.
     
     Computes semantic shift matrix by comparing the k similar neighbors of
@@ -135,7 +139,10 @@ def compute_semantic_shift_matrix(word_embeddings, k=10, smoothing=0.1):
             for w in ws:
                 if w in ws2:
                     count += 1
-            f_score = count/k + smoothing
+            if jaccard:
+                f_score = count/(2*k - count) + smoothing
+            else:
+                f_score = count/k + smoothing
             if f_score == 1.1:
                 f_score = 1
             comp_mat[i][j] = f_score

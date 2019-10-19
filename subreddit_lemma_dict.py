@@ -6,18 +6,8 @@ import re
 # import pandas as pd
 import pickle
 import config
+import glob
 
-def pickle_load(path):
-    some_data_type = None
-    with open(path, 'rb') as f:
-        some_data_type = pickle.load(f)
-    f.close()
-    return some_data_type
-
-def pickle_dump(file_name, data):
-    with open(file_name, 'wb') as f:
-        pickle.dump(data, f)
-    f.close()
 
 def extract_lemmas(base_path, partial_path, lemma_dict, save_path="/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/"):
     

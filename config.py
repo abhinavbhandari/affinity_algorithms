@@ -5,14 +5,14 @@ File paths.
 
 "File information Directories"
 
-PROJECT_DATA_PATH = '/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/'
-SUBDIR_ANALYSIS_LOAD_PATH = '/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/'
-SUBREDDIT_METRIC = '/home/ndg/projects/shared_datasets/semantic_shift_lemmatized/subreddits_nov2014_june2015/subreddit_metrics/'
+PROJECT_DATA_PATH = '/home/ndg/projects/semantic_shift_lemmatized/'
+SUBDIR_ANALYSIS_LOAD_PATH = '/home/ndg/projects/semantic_shift_lemmatized/subreddits_nov2014_june2015/'
+SUBREDDIT_METRIC = '/home/ndg/projects/semantic_shift_lemmatized/subreddits_nov2014_june2015/subreddit_metrics/'
 
 """
 The directories where subreddit data is stored. 
 """
-SUBREDDIT_STORAGE_PATH = '/home/ndg/projects/shared_datasets/semantic-shift-by-subreddit/subreddits_nov2014_june2015/'
+SUBREDDIT_STORAGE_PATH = '/home/ndg/projects/semantic-shift-by-subreddit/subreddits_nov2014_june2015/'
 
 
 """
