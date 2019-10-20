@@ -17,7 +17,7 @@ The project contains scripts that were explicitly used for the Network Dynamics 
 
 Install the packages from the requirements.txt
 
-｀｀｀ pip install requirements.txt ｀｀｀
+<code>pip install requirements.txt</code>
 
 <h4> Tests </h4>
 
