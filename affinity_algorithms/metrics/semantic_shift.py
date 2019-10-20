@@ -1,4 +1,5 @@
 import gensim
+from affinity_algorithms.preprocessing import lemmatize
 from nltk.corpus import stopwords
 from gensim.models import Word2Vec
 stopw = set(stopwords.words('english'))
@@ -8,10 +9,25 @@ import numpy as np
 import multiprocessing as mp
 import pandas as pd
 
-def filter_word_vectors(subnames, aff_words,
+def filter_word_vectors(subnames,
+                        aff_words,
                         default_path='/home/ndg/projects/semantic_shift_lemmatized/subreddits_nov2014_june2015/', 
                         model_ext=['-2014-11-12.model', '-2015-01-02.model', '-2015-03-04.model', '-2015-05-06.model']):
+    """Filters word vectors that only have four model extensions.
     
+    This is a filtering algorithm that only extracts word models for sizeably
+    trained models. Often times large models in word2vec are distributed into
+    multiple files. We ignore those models.
+    
+    Args:
+        subnames (list): List of subreddits
+        aff_words (list): List of terms
+        default_path (str): Default path from which models should be extracted.
+        model_ext (list): Model extension to observe
+        
+    Returns:
+        new_subnames, new_aff_words
+    """
     remove_index = []
     new_aff_words = []
     new_subnames = []
@@ -28,31 +44,27 @@ def filter_word_vectors(subnames, aff_words,
     return new_subnames, new_aff_words
 
 
-def lemmatize_text(preprocessed_text, nlp, queue=None, batch_size=100, thread_count=8):
-    token_list = []
-    piped_docs = nlp.pipe(preprocessed_text, batch_size=batch_size, n_threads=thread_count)
-    for doc in piped_docs:
-        token_list.append([token.lemma_ if token.lemma_ != '-PRON-' else token.lower_ for token in doc])
-    if queue:
-        queue.put(token_list)
-    else:
-        return token_list
-
-
 def get_word_models(subreddit, 
-                    default_path='/home/ndg/projects/semantic_shift_lemmatized/subreddits_nov2014_june2015/', 
-                    model_ext=['-2014-11-12.model', '-2015-01-02.model', '-2015-03-04.model', '-2015-05-06.model']):
-    """
-    Purpose:
+                    default_path=None, 
+                    model_ext=['-2014-11-12.model',
+                               '-2015-01-02.model',
+                               '-2015-03-04.model',
+                               '-2015-05-06.model']):
+    """Returns the word2vec models searched for in a subreddit directory. 
+        
+    By default, it returns in the intervals of 2 months, word2vec models 
+    trained between Nov 2014 and June 2015. 
     
-        Returns the word2vec models searched for in a subreddit directory. By default, it returns in the intervals of 
-        2 months, word2vec models trained between Nov 2014 and June 2015. 
+    The default path should be
+    '/home/ndg/projects/semantic_shift_lemmatized/subreddits_nov2014_june2015/'.
         
-    Parameters:
-        subreddit: subreddit name -> string
-        default_path: path to the subreddit models directory -> string
-        model_ext: extension by which the models are loaded -> list -> str. 
-        
+    Args:
+        subreddit (str): subreddit name
+        default_path (str): path to the subreddit models directory
+        model_ext (list): extension by which the models are loaded
+    
+    Returns:
+        list of models
     """
     subreddit_dir = os.path.join(default_path, subreddit)
     
@@ -62,21 +74,48 @@ def get_word_models(subreddit,
     return models
 
 
-def ready_corpus_for_w2v(posts, nlp, freq=None, batch_size=100, thread_count=8,
-                         lemmatize=False, filter_stopw=True):
+def ready_corpus_for_w2v(posts,
+                         nlp,
+                         freq=None,
+                         batch_size=100,
+                         thread_count=8,
+                         lemmatize_bool=False,
+                         filter_stopw=True):
+    """Converts corpus for training a Word2Vec.
+    
+    Readying the corpus includes lemmatizing.
+    
+    Args:
+        posts (list): List of text.
+        nlp (spacy.nlp): Spacy parser
+        freq (dic): Word frequencies
+        batch_size (int): Default is 100
+        thread_count (int): Default is 8
+        filter_stopw (bool): Boolean for filtering
+        
+    Returns:
+        A processed converted corpus.
+    """
     words = set(freq.keys())
     
     convert_corpus = [[w for w in p if w in words and w not in stopw] for p in posts]
     
-    if lemmatize:
+    if lemmatize_bool:
         texts = [' '.join(p) for p in convert_corpus]
-        convert_corpus = lemmatize_text(texts, nlp, batch_size=batch_size, thread_count=thread_count)
+        convert_corpus = lemmatize.lemmatize_text(texts, nlp, batch_size=batch_size, thread_count=thread_count)
     
     return convert_corpus
 
 
 def create_w2v_model(convert_corpus):
+    """Wrapper for word2vec model of a text corpus.
     
+    Args:
+        convert_corpus (list): List of textual corpus
+        
+    Returns:
+        Word2Vec.Model
+    """
     model = gensim.models.Word2Vec(
         convert_corpus,
         size=300,
@@ -89,9 +128,13 @@ def create_w2v_model(convert_corpus):
 
 
 def word_cross_comparison(similar_words):
-    """
-    Purpose:
-    takes in a list of list of words and tries to identify how many of the words are in the other lists
+    """Computes intersection of words from one list the other lists
+    
+    Args:
+        similar_words (list -> list): nested list of neighboring words
+        
+    Returns:
+        Score matrix of similarities
     """
     score_mat = [[] for i in range(len(similar_words))]
     for i, w_list in enumerate(similar_words):
@@ -106,16 +149,11 @@ def word_cross_comparison(similar_words):
 
 
 def get_similarity_score(pearson_mat):
-    """
-    """
+    """Computes stability scores as similarity."""
     total_mat = pearson_mat[0]
     for mat in pearson_mat[1:]:
         total_mat += mat
     return total_mat/len(pearson_mat)
-
-
-def jaccard_index(pearson_mat):
-    return
 
 
 def compute_semantic_shift_matrix(word_embeddings, k=10, smoothing=0.1, jaccard=True):
@@ -125,11 +163,14 @@ def compute_semantic_shift_matrix(word_embeddings, k=10, smoothing=0.1, jaccard=
     word embeddings that are ordered.
     
     Args:
-        word_embeddings: list of word embeddings ordered by date interval
-        k: number of similar neighbors to compare
-        smoothing: smoothing coefficient, that gives an assumption of 
-            at least one neighbor is similar (although the data may not contain it).
+        word_embeddings (word2vec.Models): list of word embeddings ordered by date interval
+        k (int): number of similar neighbors to compare
+        smoothing (bool): smoothing coefficient, that gives an assumption of at least 
+            one neighbor is similar (although the data may not contain it).
+        jaccard (bool):
     
+    Returns:
+        word_embeddings
     """
     word_embeddings_len = len(word_embeddings)
     comp_mat = np.empty((word_embeddings_len, word_embeddings_len))
@@ -149,18 +190,20 @@ def compute_semantic_shift_matrix(word_embeddings, k=10, smoothing=0.1, jaccard=
     return comp_mat
 
 
-def pearson_coefficient_score(mods, aff_words, k=10, smoothing=0.1):
-    """Extracts the semantic shift matrices for affinity terms by comparing word embeddings.
+def semantic_shift_matrix(mods, aff_words, k=10, smoothing=0.1):
+    """Extracts the semantic shift matrices for affinity terms by comparing 
+        word embeddings.
     
     Args:
-        mods: word embedding models for each interval, ordered
-        aff_words: 
+        mods (word2vec.Models): word embedding models for each interval, ordered 
+            by date.
+        aff_words (list): List of affinity terms
+        k (int): Number of neighbors to compare
+        smoothing (float): Laplace smoothing
     
     Returns:
-        Four values.
-        A list of semantic shift matrices
-        The number of words that are in all four models
-        
+       A list of semantic shift matrices, the number of words that are 
+           in all four models.
     """
     word_to_score = {}
     pearson_mat = []
@@ -188,19 +231,24 @@ def pearson_coefficient_score(mods, aff_words, k=10, smoothing=0.1):
 
 
 def get_forward_backward_scores(sim_matrix, net=True):
-    """
-    Purpose: 
-        Extracts the semantic shift score of a subreddit.
-        It does this in a few ways. Firstly from the similarity matrix, it extracts the top left score as forward score.
-        It then extracts the bottom right as backward score.
+    """Extracts the semantic shift score of a subreddit.
+    
+    It does this in a few ways. Firstly from the similarity matrix, 
+    it extracts the top left score as forward score.
+    It then extracts the bottom right as backward score.
+    
+    Args:
+        sim_matrix (ndarray): Matrix of similarity
+        net (bool): Bool for computing net shift.
         
+    Returns:
+        list of semantic shifts scores.
     """
     net_forward_score = 0
     net_backward_score = 0
     forward_score = sim_matrix[0][1]
     backward_score = sim_matrix[-1][-2]
     if net:
-        
         prev = 0
         for i in sim_matrix[0][1:]:
             if prev == 0:
@@ -208,34 +256,31 @@ def get_forward_backward_scores(sim_matrix, net=True):
             else:
                 net_forward_score += i - prev
                 prev = i
-        
         prev = 0
         for j in sim_matrix[-1][:-1]:
             if prev == 0:
                 prev = j
-                
             else:
                 net_backward_score += j - prev
                 prev = j
-    
     return [forward_score, backward_score, net_forward_score, net_backward_score]
 
 
 def get_n_affinity_words_semantic_shift(subreddit, aff_words, net=True):
     """Top n affinity terms have their semantic shift evaluated.
     
+    Conduct semantic shift analysis on a given set of words. The 
+    given set of words are high affinity terms to a subreddit. 
+    
     Args:
         subreddit: name of subreddit (str)
         aff_words: list of affinity terms. 
-    Purpose:
-        Conduct semantic shift analysis on a given set of words. The given set of words are high affinity terms
-        to a subreddit. 
         
-    Parameters:
-        
+    Returns:
+        semantic_scores, word_to_aff_score
     """
     models = get_word_models(subreddit)
-    pearson_mat, word_count_in_mods, word_to_aff_score, w2a_indexes = pearson_coefficient_score(models, aff_words)
+    pearson_mat, word_count_in_mods, word_to_aff_score, w2a_indexes = semantic_shift_matrix(models, aff_words)
     try:
         for i, mat in enumerate(pearson_mat):
             word_to_aff_score[w2a_indexes[i]] = get_forward_backward_scores(mat)
@@ -248,16 +293,20 @@ def get_n_affinity_words_semantic_shift(subreddit, aff_words, net=True):
 
 
 def semantic_shift_analysis(subreddit, aff_words, net=True):
-    """
-    Purpose:
-        Conduct semantic shift analysis on a given set of words. The given set of words are high affinity terms
-        to a subreddit. 
+    """Conduct semantic shift analysis on a given set of words. 
+    
+    The given set of words are high affinity terms to a subreddit. 
         
-    Parameters:
+    Args:
+        subreddit (str): Subreddit name
+        aff_words (list): Affinity terms for analysis
+        net (bool): Boolean for calculating net semantic shift. Default is True.
         
+    Returns:
+        semantic_scores
     """
     models = get_word_models(subreddit)
-    pearson_mat, word_count_in_mods, _, _ = pearson_coefficient_score(models, aff_words)
+    pearson_mat, word_count_in_mods, _, _ = semantic_shift_matrix(models, aff_words)
     try:
         sim_matrix = get_similarity_score(pearson_mat)
         semantic_scores = get_forward_backward_scores(sim_matrix, net)
@@ -268,7 +317,15 @@ def semantic_shift_analysis(subreddit, aff_words, net=True):
 
 
 def semantic_shift_analysis_mult(subreddits, aff_words, net=True):
-    """
+    """Computes semamantic shift analysis using multiprocessing.
+    
+    Args:
+        subreddits (list): Subreddit names
+        aff_words (list): List of Affinity terms for measuing semantic shift
+        net (bool): Boolean to measure net semantic shift. Default is True.
+        
+    Returns:
+        semantic_scores_list, ordered by subreddit list.
     """
     semantic_scores_list = []
     

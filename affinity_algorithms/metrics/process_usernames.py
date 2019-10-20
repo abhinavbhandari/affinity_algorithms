@@ -5,9 +5,25 @@ import config
 from affinity_aglorithms.utils.files import pickle_load
 import os
 
-def calculate_user_name_metrics(subname, aff_word, w2u_path, u2w_path, total_users, intercepting_words=True):
+def calculate_user_name_metrics(subname,
+                                aff_word,
+                                w2u_path,
+                                u2w_path,
+                                total_users,
+                                intercepting_words=True):
     """Remove replacing w2u, and u2w at some point.
     
+    Args:
+        subname (str): Name of subreddit
+        aff_word (list): List of affinity words
+        w2u_path (str): Path to load w2u
+        u2w_path (str): Path to load u2w
+        total_users (int): Count of total users
+        intercepting_words (bool): Whether to remove intercepting words. 
+            Default is False
+            
+    Returns:
+        A list of mean, std, slang_to_user_wc and percentage of users adopting slang.
     """
     num_of_users = []
     aff_value = []
@@ -57,30 +73,40 @@ def calculate_user_name_metrics_mult(subnames, aff_word, subreddit_metrics):
         sub_path = os.path.join(config.SUBDIR_ANALYSIS_LOAD_PATH, sub)
         w2u_path = os.path.join(sub_path, sub + config.W2U_EXT)
         u2w_path = os.path.join(sub_path, sub + config.U2W_EXT)
-        metrics_holder.append(pool.apply(calculate_user_name_metrics, args=(sub, 
-                                                                            aff_w, 
-                                                                            w2u_path, 
-                                                                            u2w_path, 
-                                                                            subreddit_metrics[sub])
+        metrics_holder.append(pool.apply(calculate_user_name_metrics, 
+                                         args=(sub, 
+                                               aff_w,
+                                               w2u_path,
+                                               u2w_path,
+                                               subreddit_metrics[sub])
                                         )
                              )
     return metrics_holder
     
 
 def sorting_words_with_frequency(): 
-    """
+    """Sort words of equal length by frequency.
+    
     Todo:
         Implement this with sorted words, and frequency optimization. 
     """
     return None
 
-
-# This should be put inside extract_usernames. 
+ 
 def remove_intercepting_words(u2w, w2u):
+    """Removes additional words that are not needed and act as fillers.
     
-    """
-    Purpose:
-        Removes additional words that are not needed and act as fillers.
+    Words such as "whenever" and "when" can be associated with the same user
+    since "when" is found within "whenever". This should not be the case,
+    and as a heuristic the longer word should be selected. This function mitgates
+    that problem.
+    
+    Args:
+        u2w (dic): Dictionary that maps usernames to words
+        w2u (dic): Dictionary that maps words to usernames
+        
+    Returns:
+        u2w, w2u
         
     Todo:
         Implement this with sorted words, and frequency optimization. 
@@ -106,10 +132,9 @@ def remove_intercepting_words(u2w, w2u):
     return u2w, w2u
 
 
-def tup_to_dic(tups, mult=False):
-    """
-    
-    """
+def tup_to_dic(tups,
+               mult=False):
+    """Converts a tuple to a dictionary"""
     if mult:
         dics = [{t[0]:t[1] for t in tup} for tup in tups]
         return dics
@@ -117,10 +142,9 @@ def tup_to_dic(tups, mult=False):
         return {t[0]:t[1] for t in tups}
 
     
-def dic_to_tup(dics, mult=False):
-    """
-    
-    """
+def dic_to_tup(dics,
+               mult=False):
+    """Converts dictionary to a tuple"""
     tups = []
     if mult:
         for dic in dics:
@@ -133,10 +157,28 @@ def dic_to_tup(dics, mult=False):
             tups.append((word, dics[word]))
     return tups
 
-def filter_words(tups, word_len=[3, 4, 5], word_freq=[[200], [15], [10]], max_len=20, min_freq=5):
-    """
-    Purpose:
-    Filters words from tuples of (word, freq) of specified lengths. Returns valid tuples, and rejected tuples.
+
+def filter_words(tups,
+                 word_len=[3, 4, 5],
+                 word_freq=[[200], [15], [10]],
+                 max_len=20, 
+                 min_freq=5):
+    """Filters words from tuples of (word, freq) of specified lengths. 
+    
+    Takes in various word lengths to which particular frequency thresholds
+    need to be applied. There is little research conducted in what makes an
+    accurate filter point for types of frequency. The word distribution of meaningless
+    words needs to be investigated. Returns valid tuples, and rejected tuples.
+    
+    Args:
+        tups (list): List of tuples
+        word_len (list): List of length of words to which specified freq thresholds
+            should be applied.
+        max_len (int): Max length of word that should be accepted
+        min_freq (int): Minimum frequency of words that should be accepted.
+        
+    Returns:
+        list of tuples, and list of filtered tuples. 
     """
     remove_index = [ [] for i in range(len(tups))]
     
@@ -168,10 +210,7 @@ def filter_words(tups, word_len=[3, 4, 5], word_freq=[[200], [15], [10]], max_le
 
 
 def conditional_insertion_in_dic(dic, term, insert_val):
-    """
-    
-    """
-    
+    """If a term is in dictionary, append a value to it, or create a new entry."""
     if term in dic:
         dic[term].append(insert_val)
     else:
@@ -203,10 +242,16 @@ def create_user_to_word(usernames, word_dic):
     return word_to_user, user_to_word
 
 
-def remove_words_not_in_dic(sub_dic, word_to_user, user_to_word, mult=True):
-    """
+def remove_words_not_in_dic(sub_dic, word_to_user, user_to_word):
+    """Remove words in usernames that are not in dictionaries.
     
-    
+    Args:
+        sub_dic (dic): Word -> count
+        word_to_user (dic): Dictionary that maps word to user
+        user_to_word (dic): Maps user to words
+        
+    State:
+        Alters word_to_user and user_to_word. These are passed by reference.
     """
     word_set = set(word_to_user.keys())
     for word in word_set:

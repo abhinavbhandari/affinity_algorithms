@@ -215,9 +215,17 @@ def get_total_posts_for_author_in_subs(original_sub_count, intersect_subs=None):
 
 
 def get_number_of_dedicated_users(total_freq, n=10):
-    """
-    Purpose:
+    """Returns number of dedicated users.
     
+    Dedication is calculated as a user participating in at least n comments in 
+    a subredditfor each time t in T. 
+    
+    Args:
+        total_freq (dic): Maps Subreddits to auth -> comments
+        n (int): number of dedication threshold
+        
+    Returns:
+        total_ave (dic): Subreddit -> dedication score. 
     """
     total_ave = {}                
     for sub_n, sb in total_freq.items():
@@ -231,10 +239,7 @@ def get_number_of_dedicated_users(total_freq, n=10):
 
 
 def get_total_number_of_users(subs_to_auths):
-    """
-    Purpose:
-    
-    """
+    """Returns total number of users from asubreddit."""
     return {sub_index: len(auth_to_dics) for sub_index, auth_to_dics in subs_to_auths.items()}
 
 
@@ -242,7 +247,8 @@ def retrieve_user_metrics(sbcs, n=10000):
     """Function returns metrics, such as loyalty, dedication, comments and users. 
     
     Information of loyalty, dedication, comments and users is retrieved from different time periods.
-    Sbcs
+    This function is a composite of all computations such as extracting dedication, loyalty, and 
+    users, comments 
     """
     intersect_subs = subs_in_time_frame(sbcs)
     # should include the total for intersecting subs. 

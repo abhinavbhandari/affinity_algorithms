@@ -1,8 +1,12 @@
 def transform_sub_count_to_auth_to_dic(total_original_sub_count):
-    """
-    Purpose:
-        Takes in a list of subreddit to author counts, transforms it into
-        author to dictionary counts. 
+    """Takes in a list of subreddit to author counts, transforms it into
+        author to dictionary counts.
+        
+    Args:
+        total_original_sub_count (dic): Subreddit -> Author -> Comments
+        
+    Returns:
+        auth_to_sub (dic). Maps an author -> Comments per subreddit. 
     """
     auth_to_sub = {}
     for sub_index, auth_count_dic in total_original_sub_count.items():
@@ -14,15 +18,16 @@ def transform_sub_count_to_auth_to_dic(total_original_sub_count):
 
 
 def get_preference_subs(auth_to_sub_by_list, interval=2):
+    """Get loyal authors for each subreddit,
+        and the number of loyal authors a subreddit has.
+    
+    Args:
+        auth_to_sub_by_list (list): a list of auth_to_sub dics for each time 
+            interval.
+    
+    Returns:
+        preference_count
     """
-    Purpose:
-    Get Loyal authors for each subreddit, and the number of loyal authors a subreddit has.
-    
-    Parameters:
-    auth_to_sub_by_list: a list of auth_to_sub dics for each time interval.
-    
-    """
-    
     preference_count = {}
     #
     for i, auth_dics in enumerate(auth_to_sub_by_list):
@@ -42,9 +47,18 @@ def get_preference_subs(auth_to_sub_by_list, interval=2):
 
 
 def get_loyal_subs(preference_count):
-    """
-    Purpose:
-    Extract loyal subs from preferred subs by a user. 
+    """Extract loyal subs from preferred subs by a user.
+    
+    This function computes loyaly users. Loyalty is defined as 
+    A user participating in a subreddit for more than one t in T,
+    as well as participating in that subreddit for more than half
+    of their comments.
+    
+    Args:
+        preference_count (dic): preference count 
+        
+    Returns:
+        loyalty_count, loyal_sub_to_auths
     """
     
     loyalty_count = {}
@@ -70,13 +84,16 @@ def get_loyal_subs(preference_count):
 
 
 def get_metric_percentage(subset_dic, total_dic):
-    """
-    Purpose:
-    Used for calculating metrics such as percentage of dedicated users or percentage of loyal users
+    """Used for calculating metrics such as percentage of dedicated users 
+        or percentage of loyal users.
     
-    Parameters:
-    subset_dic: The dictionary that is going to be used to create numbers
-    total_dic: should contain the total number of users (Preferably send sub: number of users)
+    Args:
+        subset_dic (dic): The dictionary that is going to be used to create numbers
+        total_dic (dic): should contain the total number of users 
+            (Preferably send sub: number of users)
+            
+    Returns:
+        metric_dictionary
     """
     
     metric_dictionary = {}
@@ -92,9 +109,15 @@ def get_metric_percentage(subset_dic, total_dic):
 
 
 def get_most_commented_sub(auth_posts):
-    """
-    Purpose:
-    See if a user prefers a given sub in their post histories. Also return the sub_index of that subreddit. 
+    """See if a user prefers a given sub in their post histories. 
+    
+    Also return the sub_index of that subreddit. 
+    
+    Args:
+        auth_posts (dic): Subreddit -> count of posts
+        
+    Returns:
+        max_sub_index, preference
     """
     total_count = 0
     max_count = 0
@@ -112,10 +135,7 @@ def get_most_commented_sub(auth_posts):
 
 
 def get_auth_to_subs(sbcs):
-    """
-    Purpose:
-        X, Y, Z: 
-    """
+    """Author's mappings to subreddits."""
     auth_to_subs = []
     for sbc in sbcs:
         auth_to_subs.append(transform_sub_count_to_auth_to_dic(sbc))
@@ -123,10 +143,17 @@ def get_auth_to_subs(sbcs):
 
 
 def get_subreddit_to_loyalty(intersect_subs_author_total, sbcs):
-    """
-    Purpose:
-        The main engine function that extracts computes the percentage such that 
-       
+    """Main fucntion that computes loyalty score.
+    
+    Composed of many composite functions that are used for the calculation of 
+    loyalty scores. It's a chain calculation. 
+    
+    Args:
+        intersect_subs_author_total (dic): Subreddits to authors
+        sbcs (dic): Subreddit counts
+        
+    Returns:
+        loyalty_percent
     """
     auth_to_subs = get_auth_to_subs(sbcs)
     preference_count_subs = get_preference_subs(auth_to_subs)
