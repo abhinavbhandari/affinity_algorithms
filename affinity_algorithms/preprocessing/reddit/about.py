@@ -1,6 +1,6 @@
-'''
-Get the about.json for each subreddit
-'''
+#-----------------------------
+# Get the about.json for each subreddit
+#-----------------------------
 
 import os
 import time
@@ -17,6 +17,14 @@ with open(sub_path, 'r') as fin:
     all_subs = [x.strip() for x in all_subs]
 
 def get_about(sub_name):
+    """Retrieves about information from Reddit about json.
+    
+    Args:
+        sub_name (str): Name of subreddit
+        
+    Saves:
+        about content to the target directory.
+    """
     print(sub_name)
     url = "http://www.reddit.com/r/{}/about.json".format(sub_name)
     resp = requests.get(url, headers=headers)

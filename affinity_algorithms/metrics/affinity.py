@@ -213,7 +213,14 @@ def load_affinity_terms(sub):
     
     
 def load_affinity_terms_mult(subnames):
-    """ """
+    """Load affinity terms, multiple instances of it.
+    
+    Args:
+        subnames (list): A list of subreddits
+        
+    Returns:
+        list of affinity terms in order of subreddits.
+    """
     aff_terms_list = []
     for sub in subnames:
         aff_terms_list.append(load_affinity_terms(sub))

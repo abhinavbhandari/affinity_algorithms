@@ -16,15 +16,12 @@ from sklearn.metrics import confusion_matrix
 
 
 def calculate_f1_scores(y_test, y_pred, average=None):
-    """Wrapper function for calculating F1 Score.
-    """
+    """Wrapper function for calculating F1 Score."""
     return f1_score(y_test, y_pred, average=average)
 
 
 def combine_corps(sub_files, date, def_path='/home/ndg/users/abhand1/subreddit_data/models/'):
-    """Loads Corpus and combines them across multiple dates.
-    """
-    
+    """Loads Corpus and combines them across multiple dates."""
     main_corp = []
     
     for sub in sub_files:
@@ -99,16 +96,16 @@ def find_optimal_params(clf,
         best_clf model, validation matrix, results, final_count_vect, lb
         
     """
-    #the list of ngrams tested
+    # the list of ngrams tested
     ng_list = [(1,1), (1,2), (2,2)]
-    #to include stopwords or not:
+    # to include stopwords or not:
     
-    #best clf from grid search and its accuracy score, currently stored with dummy values.
+    # best clf from grid search and its accuracy score, currently stored with dummy values.
     best_clf = 0
     best_score = [0, 0, 0, 0]
     conf_matrix = []
     
-    #best settings for countvectorizer which are initialized with dummy values
+    # best settings for countvectorizer which are initialized with dummy values
     stopw = False
     ng_val = (1,1)
     results = []
@@ -125,13 +122,16 @@ def find_optimal_params(clf,
                 x_value = count_vect.transform(corpus)
                 y_value = lb.transform(y_vec)
 
-            X_train, X_test, y_train, y_test = train_test_split(x_value, y_value, test_size=0.2, random_state=33)
+            X_train, X_test, y_train, y_test = train_test_split(x_value, 
+                                                                y_value, 
+                                                                test_size=0.2,
+                                                                random_state=33)
             
-            #runs grid search on the passed classifier with its range of parameters
+            # runs grid search on the passed classifier with its range of parameters
             if (params!=None):
                 clf_grid = GridSearchCV(clf, params, cv=5)
             else:
-                #just reset it as the baseline model.
+                # just reset it as the baseline model.
                 clf_grid = clf
             if pass_:
                 clf_grid.fit(X_train, y_train)
@@ -140,7 +140,7 @@ def find_optimal_params(clf,
             
             score = precision_recall_fscore_support(y_test, pred, average='weighted')
             results.append((score, ngram, stopword))
-            #store the best classifier, its score, stopword setting and ngram values.
+            #bstore the best classifier, its score, stopword setting and ngram values.
             if (score[2]> best_score[2]):
                 best_score = score
                 best_clf = clf_grid
@@ -150,15 +150,37 @@ def find_optimal_params(clf,
                 best_y_test = y_test
                 final_count_vect = count_vect 
     
-    #return the optimal classifiers and its attributes
+    # return the optimal classifiers and its attributes
     return best_clf, [best_score, stopw, ng_val, conf_matrix, best_y_test, pred], results, final_count_vect, lb
 
 
-def run_naive_bayes(corpus, y_vec, featureset, parameters=None, stopw_list=[False], clf=None, pass_=True, count_vect=None, lb=None):
-    """Run naive bayes.
+def run_naive_bayes(corpus,
+                    y_vec,
+                    featureset,
+                    parameters=None,
+                    stopw_list=[False],
+                    clf=None,
+                    pass_=True,
+                    count_vect=None,
+                    lb=None):
+    """Runs naive bayes on a provided corpus.
     
+    Automatically computes parameter settings for alpha, stopwords optimality.
+    Also computes countvectorizer. Optimality is computed through find optimal params.
+    
+    Args:
+        corpus (list): List of corpus
+        y_vec (list): List of y vectors
+        featureset (str): Informtion of featuresset
+        parameters (list): Default is None. Accepts a list for alpha params
+        clf (Sklearn.Classifier): Default is None, generates MultinomialNB.
+        pass_ (bool): Ignore parameter
+        count_vect (Sklearn.CountVectorizer): CountVectorizer
+        lb (bool): 
+        
+    Returns:
+        classifier information, attributes, crossval matrix, countvectorizer
     """
-    #alpha is the laplace bias
     print('Running Multinomial Naive Bayes. Testing for optimal paramater for alpha range of 0.1 to 2')
     print('Testing: ' + featureset)
     if not clf:

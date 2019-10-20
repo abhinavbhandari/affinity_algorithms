@@ -9,8 +9,13 @@ import config
 
 
 def get_usernames(file_name, unames):
-    """Extracts usernames
+    """Extracts usernames from passed path.
     
+    Adds the extracted usernames to the unames set.
+    
+    Args:
+        file_name (str): Path to file of data
+        unames (set): Set of user data
     """
     f_pointer = open(file_name)
     
@@ -79,7 +84,18 @@ def load_subreddit_dictionary(subreddit):
 def compute_w2u_and_u2w(unames, lemma_dict):
     """Computes the word2users, and user2word dictionaries.
     
-    The function first identifies matching words from
+    The function first identifies matching words from lemma_dict, then it 
+    extracts these terms from each username in unames. This data is compiled
+    into a new dictionary. There are many repetition cases where the words 
+    identified in usernames are words within other words. For example, if "whenever" 
+    is found in a username, "when" will also be found.
+    
+    Args:
+        unames (set): Set of usernames
+        lemma_dict (dic): Dictionary of lemmas -> frequency
+        
+    Returns:
+        w2u, u2w
     """
     lemma_tups = process_usernames.dic_to_tup(lemma_dict)
     max_len = max(len(k) for k in unames)
@@ -94,6 +110,7 @@ def compute_w2u_and_u2w(unames, lemma_dict):
 
 
 def process_words_in_usernames(subreddit):
+    """Takes in a subreddit and processes w2u, u2w extraction."""
     subreddit = sys.argv[1]
     
     unames = load_usernames(subreddit)

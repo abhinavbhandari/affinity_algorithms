@@ -5,14 +5,15 @@ import glob
 import os
 
 def extract_username_lists(files, outfile):
-    """
-    Given a list of files containing Reddit comments for an interval,
-
-    extracts all usernames and writes them to a file.
-
-    :param file_directory:
-    :param outfile
-    :return:
+    """Given a list of files containing Reddit comments for an interval,
+        extracts all usernames and writes them to a file.
+    
+    Args:
+        files (list): List of file directories
+        outfile (str): Path to store the data
+        
+    Saves:
+        An author list at outfile location.
     """
 
     authors = []
@@ -24,19 +25,18 @@ def extract_username_lists(files, outfile):
                 except:
                     print(filepath, line)
                     continue
-
                 author = comm["author"]
-
                 authors.append(author)
-
-
     with open(outfile, "w") as f:
-
         f.write(" ".join(authors))
 
 
 if __name__ == "__main__":
-
+    """Main method is invoked for when running with GNU parallel through cmdline.
+    
+    Args:
+        sys.argv[1]: subreddit data directory.
+    """
     subreddit_data_dir = sys.argv[1]
 
     subreddit = subreddit_data_dir.split("/")[-1]
