@@ -6,8 +6,8 @@ from affinity_aglorithms.utils.files import pickle_load
 import os
 
 def calculate_user_name_metrics(subname, aff_word, w2u_path, u2w_path, total_users, intercepting_words=True):
-    """
-    Remove replacing w2u, and u2w at some point. 
+    """Remove replacing w2u, and u2w at some point.
+    
     """
     num_of_users = []
     aff_value = []
@@ -218,9 +218,15 @@ def remove_words_not_in_dic(sub_dic, word_to_user, user_to_word, mult=True):
                 
 
 def filter_correct_word_and_user(word_to_user, user_to_word, mult=True):
+    """This algorithm takes in a wordToUser mapping annd filters correct usersToWord.
+    
+    The algorithm extracts each word and checks if there are words that it fits in.
+    If there are terms that the selected word fits in, then it is removed.
+    
+    Args:
+        word_to_user (dic): 
     """
-    This algorithm takes in a word"""
-            # key refers to one of the words a username is made up of.
+    # key refers to one of the words a username is made up of.
     for key in word_to_user:
         users = word_to_user[key].copy()
         for user in users:
