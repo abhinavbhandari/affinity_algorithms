@@ -44,7 +44,7 @@ gunicorn==19.9.0
 gym==0.12.1
 h5py==2.9.0
 html5lib==0.9999999
-httplib2==0.12.3
+httplib2==0.18.0
 idna==2.7
 imagesize==1.1.0
 ipykernel==4.8.2
