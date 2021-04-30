@@ -119,7 +119,7 @@ regex==2018.1.10
 reload==0.9
 requests==2.19.1
 retrying==1.3.3
-rsa==4.0
+rsa==4.7
 s3transfer==0.1.13
 scikit-learn==0.20.3
 scipy==1.1.0
